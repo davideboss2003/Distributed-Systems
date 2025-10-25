@@ -13,4 +13,6 @@ public interface DeviceRepository extends JpaRepository<Device, String> {
     List<Device> findByUser(User user);
 
     boolean existsByUser(User user);
+    
+    void deleteByUser(User user);
 }

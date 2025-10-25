@@ -132,6 +132,10 @@ public class UserService {
         }
 
         User updatedUser = userRepository.save(user);
+        
+        // Sincronizare UPDATE cu Device Microservice
+        syncUserToDeviceMicroservice(updatedUser);
+        
         return modelMapper.map(updatedUser, UserDTO.class);
     }
 
@@ -140,7 +144,22 @@ public class UserService {
         if (!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User not found with id: " + id);
         }
+        
+        // Sincronizare DELETE cu Device Microservice (înainte de ștergere)
+        deleteUserFromDeviceMicroservice(id);
+        
         userRepository.deleteById(id);
+    }
+    
+    private void deleteUserFromDeviceMicroservice(UUID userId) {
+        try {
+            restTemplate.delete(deviceMicroserviceUrl + "/api/sync/users/" + userId);
+            log.info("User deleted from Device Microservice: {}", userId);
+        } catch (Exception e) {
+            log.error("Failed to delete user from Device Microservice: {} - Error: {}", 
+                userId, e.getMessage());
+            // Nu aruncăm excepție - sincronizarea e opțională
+        }
     }
 
     @Transactional(readOnly = true)

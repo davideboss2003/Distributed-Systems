@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ro.tuc.ds2025.devices.dto.UserSyncDTO;
 import ro.tuc.ds2025.devices.model.User;
+import ro.tuc.ds2025.devices.repository.DeviceRepository;
 import ro.tuc.ds2025.devices.repository.UserRepository;
 
 import java.util.UUID;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class UserSyncService {
 
     private final UserRepository userRepository;
+    private final DeviceRepository deviceRepository;
 
     /**
      * Sincronizează un user din User Microservice în baza locală
@@ -37,11 +39,22 @@ public class UserSyncService {
     }
 
     /**
-     * Șterge un user din cache-ul local
+     * Șterge un user din cache-ul local și toate device-urile asociate
      */
     @Transactional
     public void deleteUser(UUID userId) {
-        log.info("Deleting user from local cache: {}", userId);
+        log.info("Deleting user and associated devices from local cache: {}", userId);
+        
+        // Găsește user-ul
+        User user = userRepository.findById(userId).orElse(null);
+        
+        if (user != null) {
+            // Șterge toate device-urile asociate
+            deviceRepository.deleteByUser(user);
+            log.info("Deleted all devices for user: {}", userId);
+        }
+        
+        // Șterge user-ul
         userRepository.deleteById(userId);
         log.info("User deleted successfully: {}", userId);
     }
