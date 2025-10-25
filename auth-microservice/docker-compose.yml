@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: energy-auth-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energy_auth_db
+    ports:
+      - "3309:3306"  # Port extern 3307, intern 3306
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Auth Microservice
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: energy-auth-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/energy_auth_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "8083:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - energy-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+
+networks:
+  energy-network:
+    driver: bridge

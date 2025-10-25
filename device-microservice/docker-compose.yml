@@ -1,0 +1,70 @@
+services:
+
+  mysql-devices:
+    image: mysql:8.0
+    container_name: mysql-devices-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energy_devices_db
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql-devices-data:/var/lib/mysql
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Device Microservice
+  device-microservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: device-microservice
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-devices:3306/energy_devices_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+      # JPA Configuration
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_SQL_INIT_MODE: never
+
+      # JWT Configuration
+      JWT_SECRET: your-secret-key-min-256-bits-for-hs256-algorithm-energy-management
+
+      # User Microservice URL (folosește host.docker.internal pentru servicii locale)
+      USER_MICROSERVICE_URL: http://host.docker.internal:8081
+
+      # Java Options
+      JAVA_OPTS: -Xmx512m -Xms256m
+    depends_on:
+      mysql-devices:
+        condition: service_healthy
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  energy-network:
+    driver: bridge
+    external: true
+
+volumes:
+  mysql-devices-data:
+    driver: local

@@ -1,0 +1,183 @@
+version: '3.8'
+
+services:
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      # API și Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      # Docker provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      # Entry points
+      - "--entrypoints.web.address=:80"
+      # Logging
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    ports:
+      - "80:80"       # HTTP
+      - "8080:8080"   # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - energy-network
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`localhost`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+ 
+  mysql-auth:
+    image: mysql:8.0
+    container_name: energy-auth-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energy_auth_db
+    volumes:
+      - mysql-auth-data:/var/lib/mysql
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  auth-service:
+    build:
+      context: ./auth-microservice
+      dockerfile: Dockerfile
+    container_name: energy-auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/energy_auth_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+    networks:
+      - energy-network
+    labels:
+      - "traefik.enable=true"
+      # Router pentru /api/auth
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.services.auth.loadbalancer.server.port=8083"
+      # Health check
+      - "traefik.http.services.auth.loadbalancer.healthcheck.path=/actuator/health"
+      - "traefik.http.services.auth.loadbalancer.healthcheck.interval=30s"
+
+  
+  mysql-users:
+    image: mysql:8.0
+    container_name: mysql-users-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energy_users_db
+    volumes:
+      - mysql-users-data:/var/lib/mysql
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  user-service:
+    build:
+      context: ./user-microservice
+      dockerfile: Dockerfile
+    container_name: user-microservice-app
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-users:3306/energy_users_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8081
+    depends_on:
+      mysql-users:
+        condition: service_healthy
+    networks:
+      - energy-network
+    labels:
+      - "traefik.enable=true"
+      # Router pentru /api/users
+      - "traefik.http.routers.users.rule=PathPrefix(`/api/users`)"
+      - "traefik.http.routers.users.entrypoints=web"
+      - "traefik.http.services.users.loadbalancer.server.port=8081"
+      # Health check
+      - "traefik.http.services.users.loadbalancer.healthcheck.path=/actuator/health"
+      - "traefik.http.services.users.loadbalancer.healthcheck.interval=30s"
+
+  
+  mysql-devices:
+    image: mysql:8.0
+    container_name: mysql-devices-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energy_devices_db
+    volumes:
+      - mysql-devices-data:/var/lib/mysql
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  device-service:
+    build:
+      context: ./device-microservice
+      dockerfile: Dockerfile
+    container_name: device-microservice
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-devices:3306/energy_devices_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_JPA_SHOW_SQL: "true"
+      JWT_SECRET: your-secret-key-min-256-bits-for-hs256-algorithm-energy-management
+      JAVA_OPTS: -Xmx512m -Xms256m
+    depends_on:
+      mysql-devices:
+        condition: service_healthy
+    networks:
+      - energy-network
+    labels:
+      - "traefik.enable=true"
+      # Router pentru /api/devices
+      - "traefik.http.routers.devices.rule=PathPrefix(`/api/devices`)"
+      - "traefik.http.routers.devices.entrypoints=web"
+      - "traefik.http.services.devices.loadbalancer.server.port=8082"
+      # Health check
+      - "traefik.http.services.devices.loadbalancer.healthcheck.path=/actuator/health"
+      - "traefik.http.services.devices.loadbalancer.healthcheck.interval=30s"
+
+
+networks:
+  energy-network:
+    driver: bridge
+
+volumes:
+  mysql-auth-data:
+    driver: local
+  mysql-users-data:
+    driver: local
+  mysql-devices-data:
+    driver: local

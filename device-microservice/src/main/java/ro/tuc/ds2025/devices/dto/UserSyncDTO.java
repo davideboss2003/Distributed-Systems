@@ -1,0 +1,16 @@
+package ro.tuc.ds2025.devices.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserSyncDTO {
+    private UUID id;
+    private String username;
+}

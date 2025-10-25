@@ -1,0 +1,16 @@
+[x ] Generează User Microservice în Spring Initializer x
+- [x ] Generează Device Microservice în Spring Initializer x
+- [ x] (BONUS) Generează Auth Microservice în Spring Initializer x
+- [x ] Configurează application.properties pentru fiecare
+- [ ] Creează model classes (User, Device)
+- [ ] Implementează repositories (UserRepository, DeviceRepository)
+- [ ] Implementează services (business logic)
+- [ ] Implementează controllers (REST endpoints)
+- [ ] Adaugă Spring Security + JWT
+- [ ] Testează local cu Postman/cURL
+- [ ] Creează Dockerfile pentru fiecare microservice
+- [ ] Configurează Traefik reverse proxy
+- [ ] Testează deployment cu Docker Compose
+- [ ] (BONUS) Adaugă Swagger documentation
+- [ ] Creează Deployment Diagram
+- [ ] Scrie README.md cu instrucțiuni complete
