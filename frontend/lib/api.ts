@@ -72,6 +72,7 @@ export interface RegisterData {
 
 class ApiClient {
   private getAuthHeader(): HeadersInit {
+    if (typeof window === "undefined") return {}
     const token = localStorage.getItem("token")
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
@@ -187,15 +188,25 @@ class ApiClient {
   }
 
   async getAllDevices(): Promise<Device[]> {
+    console.log("API getAllDevices called")
+    console.log("Auth header:", this.getAuthHeader())
+    console.log("API URL:", `${API_BASE_URL}/api/devices`)
+    
     const response = await fetch(`${API_BASE_URL}/api/devices`, {
       headers: this.getAuthHeader(),
     })
 
+    console.log("Response status:", response.status)
+    
     if (!response.ok) {
-      throw new Error("Failed to fetch devices")
+      const errorText = await response.text()
+      console.error("Error response:", errorText)
+      throw new Error(`Failed to fetch devices: ${response.status} - ${errorText}`)
     }
 
-    return response.json()
+    const result = await response.json()
+    console.log("Devices fetched:", result)
+    return result
   }
 
   async getDeviceById(id: string): Promise<Device> {
@@ -223,6 +234,10 @@ class ApiClient {
   }
 
   async createDevice(data: CreateDeviceData): Promise<Device> {
+    console.log("API createDevice called with:", data)
+    console.log("Auth header:", this.getAuthHeader())
+    console.log("API URL:", `${API_BASE_URL}/api/devices`)
+    
     const response = await fetch(`${API_BASE_URL}/api/devices`, {
       method: "POST",
       headers: {
@@ -232,11 +247,17 @@ class ApiClient {
       body: JSON.stringify(data),
     })
 
+    console.log("Response status:", response.status)
+    
     if (!response.ok) {
-      throw new Error("Failed to create device")
+      const errorText = await response.text()
+      console.error("Error response:", errorText)
+      throw new Error(`Failed to create device: ${response.status} - ${errorText}`)
     }
 
-    return response.json()
+    const result = await response.json()
+    console.log("Device created successfully:", result)
+    return result
   }
 
   async updateDevice(id: string, data: UpdateDeviceData): Promise<Device> {

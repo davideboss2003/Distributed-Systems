@@ -39,7 +39,9 @@ export default function DevicesPage() {
 
   const handleCreate = async () => {
     try {
-      await api.createDevice(formData)
+      console.log("Creating device with data:", formData)
+      const result = await api.createDevice(formData)
+      console.log("Device created:", result)
       mutate()
       setIsCreateOpen(false)
       setFormData({
@@ -50,6 +52,7 @@ export default function DevicesPage() {
       })
       toast.success("Device created successfully")
     } catch (error) {
+      console.error("Failed to create device:", error)
       toast.error("Failed to create device")
     }
   }

@@ -5,7 +5,7 @@ services:
     image: traefik:v2.10
     container_name: traefik
     restart: unless-stopped
-    command:
+    command:    
       # API și Dashboard
       - "--api.dashboard=true"
       - "--api.insecure=true"
