@@ -8,6 +8,7 @@ import { useAuth } from "./auth-provider"
 import { Users, HardDrive, LayoutDashboard, LogOut, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
+import { HologramAvatar } from "./hologram-avatar"
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -65,14 +66,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             })}
           </nav>
 
-          <div className="border-t border-white/10 p-4">
-            <div className="mb-3 rounded-lg bg-white/10 p-3">
-              <p className="text-sm font-medium text-white">{user?.username}</p>
-              <p className="mt-1 text-xs text-gray-400">
-                Role: <span className="font-medium text-blue-400">{user?.role}</span>
-              </p>
-            </div>
-            <Button onClick={logout} variant="outline" className="w-full border-white/20 bg-transparent text-white hover:bg-white/10" size="sm">
+          <div className="border-t border-white/10 p-4 space-y-3">
+            <HologramAvatar
+              username={user?.username || "User"}
+              role={user?.role || "CLIENT"}
+              imageSrc="/avatar.png"
+            />
+            <Button onClick={logout} variant="outline" className="w-full border-cyan-500/30 bg-black/40 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/50" size="sm">
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </Button>
