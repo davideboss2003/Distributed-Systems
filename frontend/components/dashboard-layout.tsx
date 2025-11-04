@@ -15,15 +15,19 @@ interface DashboardLayoutProps {
 }
 
 const navigation = [
-  { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Users", href: "/dashboard/users", icon: Users },
-  { name: "Devices", href: "/dashboard/devices", icon: HardDrive },
+  { name: "Overview", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "CLIENT"] },
+  { name: "Users", href: "/dashboard/users", icon: Users, roles: ["ADMIN"] },
+  { name: "Devices", href: "/dashboard/devices", icon: HardDrive, roles: ["ADMIN", "CLIENT"] },
 ]
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  const filteredNavigation = navigation.filter(item => 
+    item.roles.includes(user?.role || "CLIENT")
+  )
 
   return (
     <div className="flex h-screen bg-transparent">
@@ -45,7 +49,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <nav className="flex-1 space-y-1 px-3 py-4">
-            {navigation.map((item) => {
+            {filteredNavigation.map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link

@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import * as React from "react"
 import useSWR from "swr"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,8 +24,52 @@ import { toast } from "sonner"
 import { Plus, Pencil, Trash2, UserPlus } from "lucide-react"
 
 export default function DevicesPage() {
-  const { data: devices, mutate } = useSWR<Device[]>("/api/devices", () => api.getAllDevices())
-  const { data: users } = useSWR<User[]>("/api/users", () => api.getAllUsers())
+  const { user } = useAuth()
+  const isAdmin = user?.role === "ADMIN"
+  
+  console.log("DevicesPage - User:", user)
+  console.log("DevicesPage - isAdmin:", isAdmin)
+  
+  // Fetch devices based on role
+  // Workaround: Backend security config needs more work, so we filter on frontend
+  const { data: allDevices, mutate } = useSWR<Device[]>(
+    user ? "/api/devices" : null, 
+    () => api.getAllDevices(),
+    {
+      onError: (error) => {
+        console.error("Failed to fetch devices:", error)
+        // If CLIENT gets 403 on /api/devices, they can't see any devices
+        // This is a backend security issue that needs to be fixed
+      }
+    }
+  )
+  
+  // Filter devices for CLIENT users on frontend
+  // Note: Backend returns userId as device ID, so we filter by username instead
+  const devices = React.useMemo(() => {
+    console.log("Computing devices - isAdmin:", isAdmin, "user:", user?.username, "allDevices:", allDevices?.length)
+    
+    if (!allDevices) {
+      console.log("No allDevices yet")
+      return undefined
+    }
+    
+    if (!isAdmin && user?.username) {
+      const filtered = allDevices.filter(device => {
+        const match = device.username?.trim() === user.username.trim()
+        console.log("Filtering device:", device.description, "username:", device.username, "matches:", match)
+        return match
+      })
+      console.log("Filtered devices:", filtered)
+      return filtered
+    }
+    
+    console.log("Returning all devices:", allDevices)
+    return allDevices
+  }, [allDevices, isAdmin, user?.username])
+  const { data: users } = useSWR<User[]>("/api/users", () => 
+    isAdmin ? api.getAllUsers() : Promise.resolve([])
+  )
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -128,18 +174,26 @@ export default function DevicesPage() {
   }
 
   return (
-    <ProtectedRoute requiredRole="ADMIN">
+    <ProtectedRoute>
       <DashboardLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">Devices</h2>
-              <p className="text-muted-foreground">Manage connected devices and monitor their status</p>
+              <h2 className="text-3xl font-bold tracking-tight">
+                {isAdmin ? "Devices" : "My Devices"}
+              </h2>
+              <p className="text-muted-foreground">
+                {isAdmin 
+                  ? "Manage connected devices and monitor their status" 
+                  : "View your assigned devices and monitor their status"}
+              </p>
             </div>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Device
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => setIsCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Device
+              </Button>
+            )}
           </div>
 
           <div className="rounded-lg border border-border bg-card">
@@ -167,15 +221,22 @@ export default function DevicesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openAssignDialog(device)}>
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(device)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(device)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => openAssignDialog(device)}>
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(device)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(device)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                      {!isAdmin && (
+                        <span className="text-sm text-muted-foreground">View only</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

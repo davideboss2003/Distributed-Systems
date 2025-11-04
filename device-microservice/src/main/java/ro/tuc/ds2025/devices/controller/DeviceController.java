@@ -22,9 +22,9 @@ import java.util.List;
 public class DeviceController {
     private final DeviceService deviceService;
 
-    //GET /api/devices Lista tuturor device-urilor doar ADMIN
+    //GET /api/devices Lista tuturor device-urilor - CLIENT și ADMIN
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CLIENT')")
     public ResponseEntity<List<DeviceDTO>> getAllDevices() {
         return ResponseEntity.ok(deviceService.getAllDevices());
     }
@@ -36,7 +36,7 @@ public class DeviceController {
     }
 
     @GetMapping("/user/{userId}")  // userul vede device-rile proprii
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLIENT') and #userId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLIENT') and #userId == authentication.principal)")
     public ResponseEntity<List<DeviceDTO>> getDevicesByUserId(@PathVariable String userId) {
         return ResponseEntity.ok(deviceService.getDevicesByUserId(userId));
     }

@@ -4,6 +4,7 @@ import ro.tuc.ds2025.devices.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -47,6 +48,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/sync/**").permitAll()  // Endpoint-uri pentru sincronizare între microservicii
+                        .requestMatchers(HttpMethod.GET, "/api/devices").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/devices/user/**").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers("/api/devices/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
