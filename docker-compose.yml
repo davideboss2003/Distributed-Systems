@@ -5,7 +5,7 @@ services:
     image: traefik:v2.10
     container_name: traefik
     restart: unless-stopped
-    command:    
+    command:
       # API și Dashboard
       - "--api.dashboard=true"
       - "--api.insecure=true"
@@ -26,7 +26,7 @@ services:
       - energy-network
 
   # ==================== DATABASES ====================
-  
+
   mysql-users:
     image: mysql:8.0
     container_name: mysql-users-db
@@ -95,7 +95,6 @@ services:
       dockerfile: Dockerfile
     container_name: user-microservice-app
     restart: unless-stopped
-    # ASCUNS - doar intern
     expose:
       - "8081"
     environment:
@@ -185,6 +184,39 @@ services:
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || PathPrefix(`/auth/login`)"
       - "traefik.http.routers.auth.entrypoints=web"
       - "traefik.http.services.auth.loadbalancer.server.port=8083"
+
+  # ==================== FRONTEND ====================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: energy-frontend-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost
+    depends_on:
+      - traefik
+      - user-microservice
+      - device-microservice
+      - auth-microservice
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
 
 # ==================== NETWORKS ====================
 

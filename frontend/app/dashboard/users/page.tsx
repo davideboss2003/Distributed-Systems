@@ -138,11 +138,10 @@ export default function UsersPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          user.role === "ADMIN"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-secondary text-secondary-foreground"
-                        }`}
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${user.role === "ADMIN"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-secondary text-secondary-foreground"
+                          }`}
                       >
                         {user.role}
                       </span>
