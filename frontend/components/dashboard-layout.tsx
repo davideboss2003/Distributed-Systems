@@ -24,8 +24,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  
-  const filteredNavigation = navigation.filter(item => 
+
+  const filteredNavigation = navigation.filter(item =>
     item.roles.includes(user?.role || "CLIENT")
   )
 

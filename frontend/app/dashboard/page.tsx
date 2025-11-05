@@ -4,8 +4,30 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, HardDrive, Activity, TrendingUp } from "lucide-react"
+import useSWR from "swr"
+import { api } from "@/lib/api"
+import { useAuth } from "@/components/auth-provider"
+import RotatingEarth from "@/components/rotating-earth"
 
 export default function DashboardPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === "ADMIN"
+
+  // Fetch data for dashboard stats
+  const { data: users } = useSWR(
+    isAdmin ? "/api/users" : null,
+    () => api.getAllUsers()
+  )
+
+  const { data: devices } = useSWR(
+    "/api/devices",
+    () => api.getAllDevices()
+  )
+
+  const totalUsers = users?.length || 0
+  const totalDevices = devices?.length || 0
+  const activeSessions = 1 // Current user is always active
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -22,7 +44,7 @@ export default function DashboardPage() {
                 <Users className="h-4 w-4 text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">0</div>
+                <div className="text-2xl font-bold text-white">{totalUsers}</div>
                 <p className="text-xs text-gray-400">Registered users</p>
               </CardContent>
             </Card>
@@ -33,7 +55,7 @@ export default function DashboardPage() {
                 <HardDrive className="h-4 w-4 text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">0</div>
+                <div className="text-2xl font-bold text-white">{totalDevices}</div>
                 <p className="text-xs text-gray-400">Connected devices</p>
               </CardContent>
             </Card>
@@ -44,7 +66,7 @@ export default function DashboardPage() {
                 <Activity className="h-4 w-4 text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">0</div>
+                <div className="text-2xl font-bold text-white">{activeSessions}</div>
                 <p className="text-xs text-gray-400">Currently active</p>
               </CardContent>
             </Card>
@@ -64,23 +86,38 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-white">Quick Actions</CardTitle>
-                <CardDescription className="text-gray-400">Common administrative tasks</CardDescription>
+                <CardTitle className="text-white">Energy Consumption</CardTitle>
+                <CardDescription className="text-gray-400">Maximum hourly consumption by device</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-gray-300">• Manage users and permissions</p>
-                <p className="text-sm text-gray-300">• Monitor device connections</p>
-                <p className="text-sm text-gray-300">• View system logs and analytics</p>
+              <CardContent>
+                {devices && devices.length > 0 ? (
+                  <div className="space-y-3">
+                    {devices.slice(0, 5).map((device) => (
+                      <div key={device.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-300 truncate max-w-[200px]">{device.description}</span>
+                          <span className="text-white font-semibold">{device.maximumHourlyConsumption} kWh</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                            style={{
+                              width: `${Math.min((device.maximumHourlyConsumption / 50) * 100, 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">No devices to display</p>
+                )}
               </CardContent>
             </Card>
 
-            <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
-              <CardHeader>
-                <CardTitle className="text-white">Recent Activity</CardTitle>
-                <CardDescription className="text-gray-400">Latest system events</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-300">No recent activity</p>
+            <Card className="border-white/10 bg-black/40 backdrop-blur-xl overflow-hidden">
+              <CardContent className="p-4 flex items-center justify-center">
+                <RotatingEarth width={350} height={350} />
               </CardContent>
             </Card>
           </div>
