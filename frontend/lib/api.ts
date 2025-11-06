@@ -118,6 +118,7 @@ class ApiClient {
     return response.json()
   }
 
+  //CLIENT -->server getAllUsers
   async getAllUsers(): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/api/users`, {
       headers: this.getAuthHeader(),
