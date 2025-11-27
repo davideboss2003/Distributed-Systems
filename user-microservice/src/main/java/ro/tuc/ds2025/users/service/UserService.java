@@ -36,6 +36,7 @@ public class UserService {
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final RestTemplate restTemplate;
+    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;  // RabbitMQ publisher
     
     @Value("${device.microservice.url}")
     private String deviceMicroserviceUrl;
@@ -78,7 +79,26 @@ public class UserService {
         // Sincronizare cu Device Microservice
         syncUserToDeviceMicroservice(savedUser);
         
+        // Publish USER_CREATED event to RabbitMQ
+        publishUserCreatedEvent(savedUser);
+        
         return modelMapper.map(savedUser, UserDTO.class);
+    }
+    
+    private void publishUserCreatedEvent(User user) {
+        try {
+            ro.tuc.ds2025.users.dto.UserCreatedEvent event = ro.tuc.ds2025.users.dto.UserCreatedEvent.builder()
+                    .event("USER_CREATED")
+                    .userId(user.getId().toString())
+                    .username(user.getUsername())
+                    .email(user.getEmail())
+                    .build();
+            
+            rabbitTemplate.convertAndSend("sync_queue", event);
+            log.info("Published USER_CREATED event for user: {}", user.getId());
+        } catch (Exception e) {
+            log.error("Failed to publish USER_CREATED event: {}", e.getMessage());
+        }
     }
     
     private void syncUserToDeviceMicroservice(User user) {

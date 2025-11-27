@@ -1,0 +1,111 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: demo-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  prod1:
+    build: ./producer
+    container_name: demo-producer-1
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: user
+      SPRING_RABBITMQ_PASSWORD: pass
+
+      CONS1_QUEUE: demo.cons1.queue
+      CONS2_QUEUE: demo.cons2.queue
+
+      DIRECT_EX: demo.direct
+      TOPIC_EX: demo.topic
+      FANOUT_EX: demo.fanout
+
+      DIRECT_KEY_CONS1: cons1
+      DIRECT_KEY_CONS2: cons2
+
+      TOPIC_KEY_CONS1: users.cons1.msg
+      TOPIC_KEY_CONS2: users.cons2.msg
+    ports:
+      - "8081:8080"
+
+  prod2:
+    build: ./producer
+    container_name: demo-producer-2
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: user
+      SPRING_RABBITMQ_PASSWORD: pass
+
+      CONS1_QUEUE: demo.cons1.queue
+      CONS2_QUEUE: demo.cons2.queue
+
+      DIRECT_EX: demo.direct
+      TOPIC_EX: demo.topic
+      FANOUT_EX: demo.fanout
+
+      DIRECT_KEY_CONS1: cons1
+      DIRECT_KEY_CONS2: cons2
+
+      TOPIC_KEY_CONS1: users.cons1.msg
+      TOPIC_KEY_CONS2: users.cons2.msg
+    ports:
+      - "8082:8080"
+
+  cons1:
+    build: ./consumer
+    container_name: demo-consumer-1
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: user
+      SPRING_RABBITMQ_PASSWORD: pass
+
+      APP_QUEUE: demo.cons1.queue
+
+      DIRECT_EX: demo.direct
+      TOPIC_EX: demo.topic
+      FANOUT_EX: demo.fanout
+
+      DIRECT_BINDING_KEY: cons1
+      TOPIC_PATTERN: users.cons1.#
+
+  cons2:
+    build: ./consumer
+    container_name: demo-consumer-2
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: user
+      SPRING_RABBITMQ_PASSWORD: pass
+
+      APP_QUEUE: demo.cons2.queue
+
+      DIRECT_EX: demo.direct
+      TOPIC_EX: demo.topic
+      FANOUT_EX: demo.fanout
+
+      DIRECT_BINDING_KEY: cons2
+      TOPIC_PATTERN: users.cons2.#

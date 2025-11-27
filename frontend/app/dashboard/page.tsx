@@ -3,14 +3,17 @@
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, HardDrive, Activity, TrendingUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Users, HardDrive, Activity, TrendingUp, BarChart3, Settings, Zap } from "lucide-react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
 import { useAuth } from "@/components/auth-provider"
 import RotatingEarth from "@/components/rotating-earth"
+import { useRouter } from "next/navigation"
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const isAdmin = user?.role === "ADMIN"
 
   // Fetch data for dashboard stats
@@ -83,7 +86,53 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-white">Quick Actions</CardTitle>
+                <CardDescription className="text-gray-400">Common tasks and shortcuts</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isAdmin && (
+                  <>
+                    <Button
+                      className="w-full justify-start bg-white/5 hover:bg-white/10 text-white border-white/10"
+                      variant="outline"
+                      onClick={() => router.push('/dashboard/users')}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Manage Users
+                    </Button>
+                    <Button
+                      className="w-full justify-start bg-white/5 hover:bg-white/10 text-white border-white/10"
+                      variant="outline"
+                      onClick={() => router.push('/dashboard/devices')}
+                    >
+                      <Zap className="mr-2 h-4 w-4" />
+                      Manage Devices
+                    </Button>
+                  </>
+                )}
+                <Button
+                  className="w-full justify-start bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-white border-cyan-500/30"
+                  variant="outline"
+                  onClick={() => router.push('/dashboard/monitoring')}
+                >
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Energy Monitoring
+                </Button>
+                {isAdmin && (
+                  <Button
+                    className="w-full justify-start bg-white/5 hover:bg-white/10 text-white border-white/10"
+                    variant="outline"
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    System Settings
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
               <CardHeader>
                 <CardTitle className="text-white">Energy Consumption</CardTitle>

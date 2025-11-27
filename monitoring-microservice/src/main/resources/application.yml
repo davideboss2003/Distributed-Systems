@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: monitoring-microservice
+  
+  datasource:
+    url: jdbc:mysql://${DB_HOST:mysql-monitoring}:3306/${DB_NAME:energy_monitoring_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+
+server:
+  port: 8084
+
+# Custom properties
+app:
+  rabbitmq:
+    sync-queue: sync_queue
+    sensor-data-queue: sensor_data_queue
+
+logging:
+  level:
+    com.energy.monitoring: DEBUG
+    org.springframework.amqp: DEBUG

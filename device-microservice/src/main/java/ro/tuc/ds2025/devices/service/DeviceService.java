@@ -26,6 +26,7 @@ public class DeviceService {
     private final UserRepository userRepository;      // CRUD către tabela users (copie locală)
     private final ModelMapper modelMapper;            // mapare automată entity ↔ DTO
     private final RestTemplate restTemplate;          // client HTTP sincron către user-microservice
+    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;  // RabbitMQ publisher
     
     @org.springframework.beans.factory.annotation.Value("${user.microservice.url}")
     private String userMicroserviceUrl;
@@ -109,7 +110,30 @@ public class DeviceService {
         }
 
         Device savedDevice = deviceRepository.save(device);
+        
+        // Publish DEVICE_CREATED event to RabbitMQ
+        publishDeviceCreatedEvent(savedDevice);
+        
         return convertToDTO(savedDevice);
+    }
+    
+    private void publishDeviceCreatedEvent(Device device) {
+        try {
+            ro.tuc.ds2025.devices.dto.DeviceCreatedEvent event = ro.tuc.ds2025.devices.dto.DeviceCreatedEvent.builder()
+                    .event("DEVICE_CREATED")
+                    .deviceId(device.getId())
+                    .userId(device.getUser() != null ? device.getUser().getId().toString() : null)
+                    .description(device.getDescription())
+                    .address(device.getAddress())
+                    .maxHourlyConsumption(device.getMaximumHourlyConsumption())
+                    .build();
+            
+            rabbitTemplate.convertAndSend("sync_queue", event);
+            System.out.println("Published DEVICE_CREATED event for device: " + device.getId());
+        } catch (Exception e) {
+            System.err.println("Failed to publish DEVICE_CREATED event: " + e.getMessage());
+            // Don't fail the transaction if publishing fails
+        }
     }
 
     @Transactional

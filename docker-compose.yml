@@ -87,7 +87,86 @@ services:
       retries: 5
       start_period: 30s
 
+  mysql-monitoring:
+    image: mysql:8.0
+    container_name: mysql-monitoring-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energy_monitoring_db
+    ports:
+      - "3310:3306"
+    volumes:
+      - mysql-monitoring-data:/var/lib/mysql
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==================== MESSAGE BROKER ====================
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq-broker
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   # ==================== MICROSERVICES ====================
+
+  monitoring-microservice:
+    build:
+      context: ./monitoring-microservice
+      dockerfile: Dockerfile
+    container_name: monitoring-microservice-app
+    restart: unless-stopped
+    expose:
+      - "8084"
+    environment:
+      DB_HOST: mysql-monitoring
+      DB_NAME: energy_monitoring_db
+      DB_USER: root
+      DB_PASSWORD: root
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+    depends_on:
+      mysql-monitoring:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/api/monitoring/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.monitoring.rule=PathPrefix(`/api/monitoring`)"
+      - "traefik.http.routers.monitoring.entrypoints=web"
+      - "traefik.http.services.monitoring.loadbalancer.server.port=8084"
 
   user-microservice:
     build:
@@ -120,6 +199,8 @@ services:
       - "traefik.http.routers.users.rule=PathPrefix(`/api/users`)"
       - "traefik.http.routers.users.entrypoints=web"
       - "traefik.http.services.users.loadbalancer.server.port=8081"
+      #- labels:
+      #    - "traefik.http.middlewares.test-auth.basicauth.users=user1:pass,user2:pass2"
 
   device-microservice:
     build:
@@ -152,6 +233,8 @@ services:
       - "traefik.http.routers.devices.rule=PathPrefix(`/api/devices`) || PathPrefix(`/api/sync`)"
       - "traefik.http.routers.devices.entrypoints=web"
       - "traefik.http.services.devices.loadbalancer.server.port=8082"
+      #- labels:
+        #    - "traefik.http.middlewares.test-auth.basicauth.users=user1:pass,user2:pass2"
 
   auth-microservice:
     build:
@@ -184,6 +267,8 @@ services:
       - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || PathPrefix(`/auth/login`)"
       - "traefik.http.routers.auth.entrypoints=web"
       - "traefik.http.services.auth.loadbalancer.server.port=8083"
+      #- labels:
+      #    - "traefik.http.middlewares.test-auth.basicauth.users=user1:pass,user2:pass2"
 
   # ==================== FRONTEND ====================
 
@@ -217,6 +302,8 @@ services:
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      #- labels:
+      #    - "traefik.http.middlewares.test-auth.basicauth.users=user1:pass,user2:pass2"
 
 # ==================== NETWORKS ====================
 
@@ -233,4 +320,8 @@ volumes:
   mysql-devices-data:
     driver: local
   mysql-auth-data:
+    driver: local
+  mysql-monitoring-data:
+    driver: local
+  rabbitmq-data:
     driver: local

@@ -1,0 +1,498 @@
+# 📋 TODO List - Assignment 2 Implementation (UPDATED)
+
+## ✅ FAZA 1: Setup Infrastructure (30 min) - COMPLETĂ
+- [x] Adaugă RabbitMQ în docker-compose.yml
+- [x] Pornește RabbitMQ și verifică Management UI (http://localhost:15672)
+- [x] Creează baza de date MySQL pentru Monitoring MS
+
+**Status:** ✅ DONE - RabbitMQ rulează, queue-uri create automat
+
+---
+
+## ✅ FAZA 2: Monitoring Microservice - JAVA (3-4 ore) - COMPLETĂ
+
+### 📦 Setup Proiect
+- [x] Creează folder `monitoring-microservice/` (Java Spring Boot)
+- [x] Copiază structura din `demo-rabbit/consumer/` ca bază
+- [x] Modifică `pom.xml`:
+  - [x] Adaugă `spring-boot-starter-data-jpa`
+  - [x] Adaugă `mysql-connector-java`
+  - [x] Păstrează `spring-boot-starter-amqp`
+  - [x] Păstrează `spring-boot-starter-web`
+
+### 🗄️ Database Layer
+- [x] Creează `application.yml` cu configurare MySQL + RabbitMQ
+- [x] Creează entități JPA:
+  - [x] `User.java` (id, username, email, createdAt)
+  - [x] `Device.java` (id, userId, description, address, maxHourlyConsumption, createdAt)
+  - [x] `HourlyConsumption.java` (id, deviceId, timestamp, consumptionKwh, measurementCount, createdAt)
+- [x] Creează repositories:
+  - [x] `UserRepository.java`
+  - [x] `DeviceRepository.java`
+  - [x] `HourlyConsumptionRepository.java`
+
+### 🐰 RabbitMQ Configuration
+- [x] Creează `config/RabbitMQConfig.java`:
+  - [x] Declară `sync_queue` (Queue)
+  - [x] Declară `sensor_data_queue` (Queue)
+  - [x] Bean `Jackson2JsonMessageConverter`
+  - [x] Bean `RabbitTemplate` cu converter
+
+### 📨 Message Models (DTOs)
+- [x] Creează `dto/SyncEventMessage.java`:
+  - [x] String event ("USER_CREATED" / "DEVICE_CREATED")
+  - [x] String userId
+  - [x] String deviceId
+  - [x] String username, email, description, address
+  - [x] Double maxHourlyConsumption
+- [x] Creează `dto/SensorDataMessage.java`:
+  - [x] String deviceId
+  - [x] Double measurementValue
+  - [x] LocalDateTime timestamp
+
+### 🎧 Message Listeners (Consumers)
+- [x] Creează `listener/SyncQueueListener.java`:
+  - [x] `@RabbitListener(queues = "sync_queue")`
+  - [x] Metodă `onUserCreated()` - salvează User în DB
+  - [x] Metodă `onDeviceCreated()` - salvează Device în DB
+  - [x] Logare evenimente primite
+
+- [x] Creează `listener/SensorDataListener.java`:
+  - [x] `@RabbitListener(queues = "sensor_data_queue")`
+  - [x] Metodă `onSensorData()` - procesează măsurători
+  - [x] Buffer in-memory pentru agregare (Map<DeviceId, Map<Hour, List<Values>>>)
+  - [x] Când ajunge la 6 măsurători:
+    - [x] Calculează suma
+    - [x] Salvează în `HourlyConsumption`
+    - [x] Curăță buffer-ul
+
+### 🌐 REST API (Controllers)
+- [x] Creează `controller/MonitoringController.java`:
+  - [x] `GET /api/monitoring/health` - Health check
+  - [x] `GET /api/monitoring/devices` - Lista device-uri
+  - [x] `GET /api/monitoring/devices/{id}/consumption` - Consum pe device
+    - [x] Query params: startDate, endDate (opțional)
+  - [x] `GET /api/monitoring/users` - Lista useri
+
+### 🐳 Docker & Deployment
+- [x] Creează `Dockerfile` pentru Monitoring MS
+- [x] Adaugă service în `docker-compose.yml`:
+  - [x] Depends on: mysql-monitoring, rabbitmq
+  - [x] Environment: DB URL, RabbitMQ host
+  - [x] Expus prin Traefik la `/api/monitoring`
+
+### ✅ Testing
+- [x] Build proiect: `mvn clean package` - SUCCESS!
+- [x ] Pornește în Docker: `docker-compose up -d monitoring-microservice`
+- [x ] Verifică logs: `docker logs monitoring-microservice-app`
+- [x ] Verifică conectare RabbitMQ (queue-uri declarate)
+- [ x] Test API: `curl http://localhost/api/monitoring/health`
+
+**Status:** ✅ DONE - Cod complet creat, build SUCCESS, gata de testare!
+
+---
+
+## ✅ FAZA 3: Device Simulator - Python (1 oră) - COMPLETĂ
+- [x] Creează folder `device-simulator/`
+- [x] Creează `simulator.py` cu:
+  - [x] Generare date random la 10 minute (sau 10 secunde în test mode)
+  - [x] Publicare mesaje în RabbitMQ (`sensor_data_queue`)
+  - [x] Logică realistă (mai mult consum ziua, mai puțin noaptea)
+- [x] Creează `config.json` pentru configurare device_id
+- [x] Creează `requirements.txt` (pika)
+- [x] Testează manual (rulează local, nu în Docker)
+
+**Status:** ✅ DONE - Simulator funcționează, trimite date la 10s în test mode
+
+---
+
+## 🔄 FAZA 4: Modificări Device Microservice - Java (1-2 ore)
+
+### 📦 Dependencies
+- [ ] Adaugă în `device-microservice/pom.xml`:
+  ```xml
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-amqp</artifactId>
+  </dependency>
+  ```
+
+### 🐰 RabbitMQ Configuration
+- [ ] Creează `config/RabbitMQConfig.java`:
+  - [ ] Bean `RabbitTemplate`
+  - [ ] Bean `Jackson2JsonMessageConverter`
+  - [ ] Declară `sync_queue` (Queue)
+
+### 📤 Message Publishing
+- [ ] Creează `dto/DeviceCreatedEvent.java`:
+  - [ ] String event = "DEVICE_CREATED"
+  - [ ] String deviceId
+  - [ ] String userId
+  - [ ] String description
+  - [ ] String address
+  - [ ] Double maxHourlyConsumption
+
+- [ ] Modifică `service/DeviceService.java`:
+  - [ ] Inject `RabbitTemplate`
+  - [ ] În metoda `createDevice()`:
+    - [ ] După salvare în DB
+    - [ ] Creează `DeviceCreatedEvent`
+    - [ ] Publică: `rabbitTemplate.convertAndSend("sync_queue", event)`
+    - [ ] Log: "Published DEVICE_CREATED event"
+
+### ⚙️ Configuration
+- [ ] Adaugă în `application.properties`:
+  ```properties
+  spring.rabbitmq.host=rabbitmq
+  spring.rabbitmq.port=5672
+  spring.rabbitmq.username=guest
+  spring.rabbitmq.password=guest
+  ```
+
+### ✅ Testing
+- [ ] Rebuild: `mvn clean package`
+- [ ] Restart: `docker-compose up -d --build device-microservice`
+- [ ] Creează device în frontend
+- [ ] Verifică RabbitMQ Management UI (mesaj în sync_queue)
+- [ ] Verifică logs Monitoring MS (mesaj consumat)
+- [ ] Verifică DB Monitoring (device salvat)
+
+**Status:** ⏳ TO DO
+
+---
+
+## 🎁 FAZA 5: Modificări User Microservice - Java (BONUS - 1 oră)
+
+### 📦 Dependencies
+- [ ] Adaugă în `user-microservice/pom.xml`:
+  ```xml
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-amqp</artifactId>
+  </dependency>
+  ```
+
+### 🐰 RabbitMQ Configuration
+- [ ] Creează `config/RabbitMQConfig.java`:
+  - [ ] Bean `RabbitTemplate`
+  - [ ] Bean `Jackson2JsonMessageConverter`
+  - [ ] Declară `sync_queue` (Queue)
+
+### 📤 Message Publishing
+- [ ] Creează `dto/UserCreatedEvent.java`:
+  - [ ] String event = "USER_CREATED"
+  - [ ] String userId
+  - [ ] String username
+  - [ ] String email
+
+- [ ] Modifică `service/UserService.java`:
+  - [ ] Inject `RabbitTemplate`
+  - [ ] În metoda `createUser()`:
+    - [ ] După salvare în DB
+    - [ ] Creează `UserCreatedEvent`
+    - [ ] Publică: `rabbitTemplate.convertAndSend("sync_queue", event)`
+    - [ ] Log: "Published USER_CREATED event"
+
+### ⚙️ Configuration
+- [ ] Adaugă în `application.properties`:
+  ```properties
+  spring.rabbitmq.host=rabbitmq
+  spring.rabbitmq.port=5672
+  spring.rabbitmq.username=guest
+  spring.rabbitmq.password=guest
+  ```
+
+### ✅ Testing
+- [ ] Rebuild: `mvn clean package`
+- [ ] Restart: `docker-compose up -d --build user-microservice`
+- [ ] Creează user în frontend
+- [ ] Verifică RabbitMQ Management UI (mesaj în sync_queue)
+- [ ] Verifică logs Monitoring MS (mesaj consumat)
+- [ ] Verifică DB Monitoring (user salvat)
+
+**Status:** ⏳ TO DO (BONUS +2p)
+
+---
+
+## 🧪 FAZA 6: Testing End-to-End (1 oră)
+
+### 🚀 Pornire Sistem
+- [ ] Oprește toate: `docker-compose down`
+- [ ] Pornește toate: `docker-compose up -d --build`
+- [ ] Verifică toate containerele: `docker ps`
+- [ ] Verifică logs pentru erori
+
+### ✅ Test 1: Sincronizare User
+- [ ] Creează user în frontend (Admin panel)
+- [ ] Verifică RabbitMQ UI: mesaj în `sync_queue` → consumat
+- [ ] Verifică Monitoring DB:
+  ```sql
+  SELECT * FROM users;
+  ```
+- [ ] Verifică API: `curl http://localhost/api/monitoring/users`
+
+### ✅ Test 2: Sincronizare Device
+- [ ] Creează device în frontend
+- [ ] Verifică RabbitMQ UI: mesaj în `sync_queue` → consumat
+- [ ] Verifică Monitoring DB:
+  ```sql
+  SELECT * FROM devices;
+  ```
+- [ ] Verifică API: `curl http://localhost/api/monitoring/devices`
+
+### ✅ Test 3: Simulator → Date Senzor
+- [ ] Editează `device-simulator/config.json`:
+  - [ ] Setează `device_id` = ID-ul device-ului creat
+  - [ ] Setează `test_mode: true` (10 secunde)
+- [ ] Pornește simulator: `python device-simulator/simulator.py`
+- [ ] Verifică RabbitMQ UI: mesaje în `sensor_data_queue`
+- [ ] Verifică logs Monitoring MS: "Received sensor data"
+
+### ✅ Test 4: Agregare Date (60 secunde în test mode)
+- [ ] Așteaptă 60 secunde (6 măsurători × 10s)
+- [ ] Verifică logs Monitoring MS: "Saved hourly consumption"
+- [ ] Verifică DB:
+  ```sql
+  SELECT * FROM hourly_consumption ORDER BY timestamp DESC;
+  ```
+- [ ] Verifică suma: ~15-25 kWh (realist pentru 1 oră)
+
+### ✅ Test 5: API Consumption
+- [ ] Apelează API:
+  ```bash
+  curl http://localhost/api/monitoring/devices/{device-id}/consumption
+  ```
+- [ ] Verifică răspuns JSON:
+  ```json
+  [
+    {
+      "timestamp": "2025-11-13T12:00:00",
+      "consumption": 18.5,
+      "measurementCount": 6
+    }
+  ]
+  ```
+
+### ✅ Test 6: Flow Complet
+- [ ] Creează user nou
+- [ ] Creează 2 device-uri pentru user
+- [ ] Pornește 2 simulatoare (config diferit pentru fiecare device)
+- [ ] Așteaptă 1 oră (sau 60s în test mode)
+- [ ] Verifică că ambele device-uri au date în DB
+
+**Status:** ⏳ TO DO
+
+---
+
+## 🎨 FAZA 7: Frontend Charts (BONUS - 2-3 ore)
+
+### 📦 Setup
+- [ ] Instalează library charts:
+  ```bash
+  npm install recharts
+  # SAU
+  npm install chart.js react-chartjs-2
+  ```
+
+### 📄 Pagină Monitoring
+- [ ] Creează `frontend/src/app/monitoring/page.tsx`
+- [ ] Creează `frontend/src/components/ConsumptionChart.tsx`
+
+### 🎛️ UI Components
+- [ ] Dropdown pentru selectare device:
+  - [ ] Fetch devices: `GET /api/monitoring/devices`
+  - [ ] Afișează: description + address
+- [ ] Date picker pentru selectare zi:
+  - [ ] Library: `react-datepicker` sau native input[type="date"]
+- [ ] Buton "Load Data"
+
+### 📊 Chart Implementation
+- [ ] Fetch data:
+  ```typescript
+  const response = await fetch(
+    `/api/monitoring/devices/${deviceId}/consumption?startDate=${date}&endDate=${date}`
+  );
+  ```
+- [ ] Procesează data pentru chart:
+  - [ ] OX: hours (0-23)
+  - [ ] OY: consumption (kWh)
+- [ ] Render Line Chart sau Bar Chart
+- [ ] Adaugă tooltip cu detalii
+
+### 🎨 Styling
+- [ ] Responsive design
+- [ ] Loading state
+- [ ] Error handling
+- [ ] Empty state (no data)
+
+### ✅ Testing
+- [ ] Testează cu date reale din simulator
+- [ ] Testează cu multiple device-uri
+- [ ] Testează cu date lipsă
+- [ ] Testează responsive pe mobile
+
+**Status:** ⏳ TO DO (BONUS +2p)
+
+---
+
+## 📝 FAZA 8: Documentation (1 oră)
+
+### 📄 README.md Principal
+- [ ] Creează/Actualizează `README.md` în root:
+  - [ ] Titlu și descriere proiect
+  - [ ] Arhitectură (scurtă descriere)
+  - [ ] Prerequisites:
+    - [ ] Docker & Docker Compose
+    - [ ] Java 17+
+    - [ ] Maven
+    - [ ] Python 3.9+ (pentru simulator)
+  - [ ] Instrucțiuni Build & Run:
+    ```bash
+    # Clone repository
+    git clone <repo-url>
+    
+    # Build all services
+    docker-compose build
+    
+    # Start all services
+    docker-compose up -d
+    
+    # Check status
+    docker ps
+    
+    # View logs
+    docker logs <container-name>
+    ```
+  - [ ] Accesare servicii:
+    - [ ] Frontend: http://localhost:3000
+    - [ ] RabbitMQ UI: http://localhost:15672 (guest/guest)
+    - [ ] API Gateway: http://localhost
+  - [ ] Rulare Simulator:
+    ```bash
+    cd device-simulator
+    pip install -r requirements.txt
+    python simulator.py
+    ```
+  - [ ] Testing:
+    - [ ] Cum să creezi user
+    - [ ] Cum să creezi device
+    - [ ] Cum să verifici date în DB
+  - [ ] Troubleshooting (erori comune)
+
+### 📐 Deployment Diagram (PlantUML)
+- [ ] Creează `deployment-diagram.puml`:
+  - [ ] Toate microserviciile
+  - [ ] Bazele de date
+  - [ ] RabbitMQ
+  - [ ] Traefik
+  - [ ] Frontend
+  - [ ] Simulator
+  - [ ] Săgeți pentru comunicare
+  - [ ] Porturi expuse
+- [ ] Generează PNG: http://www.plantuml.com/plantuml/uml/
+
+### 📚 Răspunsuri Întrebări Teoretice
+- [ ] Adaugă secțiune în README:
+  
+  **1. Ce este Message Oriented Middleware (MOM)?**
+  - [ ] Definiție
+  - [ ] Exemple (RabbitMQ, Kafka, ActiveMQ)
+  - [ ] Avantaje (decoupling, scalability, reliability)
+  
+  **2. Queue vs Topic**
+  - [ ] Queue: Point-to-Point (1 producer → 1 consumer)
+  - [ ] Topic: Publish-Subscribe (1 producer → N consumers)
+  - [ ] Diagrame explicative
+  
+  **3. Point-to-Point vs Publish-Subscribe**
+  - [ ] Point-to-Point: Mesaj consumat de UN singur consumer
+  - [ ] Publish-Subscribe: Mesaj primit de TOȚI subscribers
+  - [ ] Use cases pentru fiecare
+
+### 📦 Database Dump (Opțional)
+- [ ] Export DB cu date de test:
+  ```bash
+  docker exec mysql-monitoring-db mysqldump -u root -proot energy_monitoring_db > monitoring_db_dump.sql
+  ```
+
+**Status:** ⏳ TO DO
+
+---
+
+## 🚀 FAZA 9: Cleanup & Delivery
+
+### 🧹 Cleanup Code
+- [ ] Șterge comentarii inutile
+- [ ] Șterge debug prints
+- [ ] Șterge fișiere temporare
+- [ ] Șterge `target/` folders (Java)
+- [ ] Șterge `node_modules/` (nu se commitează)
+- [ ] Verifică `.gitignore`
+
+### ✅ Final Checks
+- [ ] Test complet: `docker-compose down && docker-compose up -d --build`
+- [ ] Toate containerele pornesc: `docker ps`
+- [ ] Toate health checks OK
+- [ ] Frontend accesibil
+- [ ] API-uri răspund
+- [ ] Simulator funcționează
+- [ ] Date salvate în DB
+
+### 📤 GitLab Delivery
+- [ ] Verifică branch-ul corect (main/master)
+- [ ] Commit final:
+  ```bash
+  git add .
+  git commit -m "Assignment 2 - Complete implementation"
+  git push origin main
+  ```
+- [ ] Verifică pe GitLab că totul e pushed
+- [ ] Share repository cu `utcn_dsrl`:
+  - [ ] Settings → Members → Invite member
+  - [ ] Username: `utcn_dsrl`
+  - [ ] Role: Reporter (read-only)
+
+### 📋 Checklist Final
+- [ ] README.md complet
+- [ ] Deployment Diagram inclus
+- [ ] Toate serviciile funcționează
+- [ ] Simulator funcționează
+- [ ] Date agregate corect
+- [ ] API-uri funcționale
+- [ ] Răspunsuri la întrebări teoretice
+- [ ] Repository shared cu utcn_dsrl
+
+**Status:** ⏳ TO DO
+
+---
+
+## 📊 Progress Summary
+
+| Fază | Status | Puncte | Completat |
+|------|--------|--------|-----------|
+| FAZA 1: Setup Infrastructure | ✅ DONE | - | 100% |
+| FAZA 2: Monitoring MS (Java) | ⚠️ REFĂCUT | 5p | 0% (era Python) |
+| FAZA 3: Device Simulator | ✅ DONE | - | 100% |
+| FAZA 4: Device MS Modificări | ⏳ TODO | - | 0% |
+| FAZA 5: User MS Modificări | ⏳ TODO | +2p | 0% |
+| FAZA 6: Testing E2E | ⏳ TODO | - | 0% |
+| FAZA 7: Frontend Charts | ⏳ TODO | +2p | 0% |
+| FAZA 8: Documentation | ⏳ TODO | - | 0% |
+| FAZA 9: Delivery | ⏳ TODO | - | 0% |
+
+**Total Puncte Posibile:** 5p (obligatoriu) + 4p (bonus) = 9p
+
+**Progres Actual:** ~20% (FAZA 1 + FAZA 3 done, FAZA 2 de refăcut)
+
+---
+
+## 🎯 Următorii Pași Recomandați
+
+1. **URGENT:** Refă Monitoring Microservice în Java (FAZA 2)
+2. Modifică Device MS pentru RabbitMQ (FAZA 4)
+3. Testing E2E (FAZA 6)
+4. (Opțional) User MS + Frontend Charts (FAZA 5 + 7)
+5. Documentation (FAZA 8)
+6. Delivery (FAZA 9)
+
+**Estimare timp rămas:** 6-8 ore pentru obligatoriu, +3-4 ore pentru bonus

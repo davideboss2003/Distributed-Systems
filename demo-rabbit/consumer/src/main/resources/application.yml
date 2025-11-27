@@ -1,0 +1,26 @@
+spring:
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+  main:
+    banner-mode: "off"
+
+app:
+  queue: ${APP_QUEUE:demo.cons1.queue}
+
+  # flat (kebab-case) keys that bind to RabbitProps
+  direct-exchange: ${DIRECT_EX:demo.direct}
+  direct-key: ${DIRECT_BINDING_KEY:cons1}
+
+  topic-exchange: ${TOPIC_EX:demo.topic}
+  topic-pattern: ${TOPIC_PATTERN:users.cons1.#}
+
+  fanout-exchange: ${FANOUT_EX:demo.fanout}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

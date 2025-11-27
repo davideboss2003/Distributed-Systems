@@ -1,0 +1,25 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
+app:
+  queues:
+    cons1: ${CONS1_QUEUE:demo.cons1.queue}
+    cons2: ${CONS2_QUEUE:demo.cons2.queue}
+  exchanges:
+    direct: ${DIRECT_EX:demo.direct}
+    topic: ${TOPIC_EX:demo.topic}
+    fanout: ${FANOUT_EX:demo.fanout}
+  routing:
+    direct:
+      cons1: ${DIRECT_KEY_CONS1:cons1}
+      cons2: ${DIRECT_KEY_CONS2:cons2}
+    topic:
+      cons1: ${TOPIC_KEY_CONS1:users.cons1.msg}
+      cons2: ${TOPIC_KEY_CONS2:users.cons2.msg}

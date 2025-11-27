@@ -1,0 +1,10 @@
+{
+  "device_id": "84c776f5-7ab7-4cf1-9233-b5ca6a14abad",
+  "rabbitmq_host": "localhost",
+  "rabbitmq_port": 5672,
+  "rabbitmq_user": "guest",
+  "rabbitmq_pass": "guest",
+  "interval_seconds": 10,
+  "test_mode": true,
+  "max_measurements": 6
+}
