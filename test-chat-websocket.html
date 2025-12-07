@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #00d4ff;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .status.connected {
+            background: #00ff0020;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+        }
+        .status.disconnected {
+            background: #ff000020;
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .message {
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            background: #3a3a3a;
+        }
+        .message.sent {
+            background: #00d4ff20;
+            border-left: 3px solid #00d4ff;
+        }
+        .message.received {
+            background: #ff00ff20;
+            border-left: 3px solid #ff00ff;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background: #00d4ff;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #00a8cc;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocket Chat Test</h1>
+    <p>Test pentru Faza 4 - Client-to-Admin Chat</p>
+
+    <div class="container">
+        <!-- Client Panel -->
+        <div class="panel">
+            <h2>👤 Client (User)</h2>
+            <div id="clientStatus" class="status disconnected">
+                ❌ Disconnected
+            </div>
+            <button id="clientConnect">Connect as Client</button>
+            <div id="clientMessages" class="messages"></div>
+            <input type="text" id="clientInput" placeholder="Type message..." disabled>
+            <button id="clientSend" disabled>Send to Admin</button>
+        </div>
+
+        <!-- Admin Panel -->
+        <div class="panel">
+            <h2>👨‍💼 Admin</h2>
+            <div id="adminStatus" class="status disconnected">
+                ❌ Disconnected
+            </div>
+            <button id="adminConnect">Connect as Admin</button>
+            <div id="adminMessages" class="messages"></div>
+            <input type="text" id="adminInput" placeholder="Type message..." disabled>
+            <button id="adminSend" disabled>Send to Client</button>
+        </div>
+    </div>
+
+    <script>
+        const WS_URL = 'ws://localhost:8085/ws/chat';
+        let clientWs = null;
+        let adminWs = null;
+
+        // Client WebSocket
+        document.getElementById('clientConnect').addEventListener('click', () => {
+            if (clientWs) {
+                clientWs.close();
+            }
+
+            clientWs = new WebSocket(`${WS_URL}?userId=user123`);
+
+            clientWs.onopen = () => {
+                console.log('Client connected');
+                document.getElementById('clientStatus').className = 'status connected';
+                document.getElementById('clientStatus').textContent = '✅ Connected';
+                document.getElementById('clientInput').disabled = false;
+                document.getElementById('clientSend').disabled = false;
+                addMessage('clientMessages', 'System', 'Connected to WebSocket', 'received');
+            };
+
+            clientWs.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                console.log('Client received:', message);
+                addMessage('clientMessages', 'Admin', message.message, 'received');
+            };
+
+            clientWs.onerror = (error) => {
+                console.error('Client error:', error);
+                addMessage('clientMessages', 'System', 'Connection error', 'received');
+            };
+
+            clientWs.onclose = () => {
+                console.log('Client disconnected');
+                document.getElementById('clientStatus').className = 'status disconnected';
+                document.getElementById('clientStatus').textContent = '❌ Disconnected';
+                document.getElementById('clientInput').disabled = true;
+                document.getElementById('clientSend').disabled = true;
+                addMessage('clientMessages', 'System', 'Disconnected', 'received');
+            };
+        });
+
+        document.getElementById('clientSend').addEventListener('click', () => {
+            const input = document.getElementById('clientInput');
+            const message = input.value.trim();
+            if (message && clientWs && clientWs.readyState === WebSocket.OPEN) {
+                const chatMessage = {
+                    fromUserId: 'user123',
+                    toUserId: 'admin',
+                    message: message,
+                    isAdmin: false,
+                    timestamp: new Date().toISOString()
+                };
+                clientWs.send(JSON.stringify(chatMessage));
+                addMessage('clientMessages', 'You', message, 'sent');
+                input.value = '';
+            }
+        });
+
+        // Admin WebSocket
+        document.getElementById('adminConnect').addEventListener('click', () => {
+            if (adminWs) {
+                adminWs.close();
+            }
+
+            adminWs = new WebSocket(`${WS_URL}?adminId=admin1`);
+
+            adminWs.onopen = () => {
+                console.log('Admin connected');
+                document.getElementById('adminStatus').className = 'status connected';
+                document.getElementById('adminStatus').textContent = '✅ Connected';
+                document.getElementById('adminInput').disabled = false;
+                document.getElementById('adminSend').disabled = false;
+                addMessage('adminMessages', 'System', 'Connected to WebSocket', 'received');
+            };
+
+            adminWs.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                console.log('Admin received:', message);
+                addMessage('adminMessages', `User ${message.fromUserId}`, message.message, 'received');
+            };
+
+            adminWs.onerror = (error) => {
+                console.error('Admin error:', error);
+                addMessage('adminMessages', 'System', 'Connection error', 'received');
+            };
+
+            adminWs.onclose = () => {
+                console.log('Admin disconnected');
+                document.getElementById('adminStatus').className = 'status disconnected';
+                document.getElementById('adminStatus').textContent = '❌ Disconnected';
+                document.getElementById('adminInput').disabled = true;
+                document.getElementById('adminSend').disabled = true;
+                addMessage('adminMessages', 'System', 'Disconnected', 'received');
+            };
+        });
+
+        document.getElementById('adminSend').addEventListener('click', () => {
+            const input = document.getElementById('adminInput');
+            const message = input.value.trim();
+            if (message && adminWs && adminWs.readyState === WebSocket.OPEN) {
+                const chatMessage = {
+                    fromUserId: 'admin1',
+                    toUserId: 'user123',
+                    message: message,
+                    isAdmin: true,
+                    timestamp: new Date().toISOString()
+                };
+                adminWs.send(JSON.stringify(chatMessage));
+                addMessage('adminMessages', 'You', message, 'sent');
+                input.value = '';
+            }
+        });
+
+        // Enter key support
+        document.getElementById('clientInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('clientSend').click();
+            }
+        });
+
+        document.getElementById('adminInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('adminSend').click();
+            }
+        });
+
+        function addMessage(containerId, sender, message, type) {
+            const container = document.getElementById(containerId);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <strong>${sender}:</strong> ${message}
+                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+            `;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>

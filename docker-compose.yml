@@ -168,6 +168,61 @@ services:
       - "traefik.http.routers.monitoring.entrypoints=web"
       - "traefik.http.services.monitoring.loadbalancer.server.port=8084"
 
+  websocket-microservice:
+    build:
+      context: ./websocket-microservice
+      dockerfile: Dockerfile
+    container_name: websocket-microservice-app
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)"
+      - "traefik.http.routers.websocket.entrypoints=web"
+      - "traefik.http.services.websocket.loadbalancer.server.port=8085"
+
+  customer-support-microservice:
+    build:
+      context: ./customer-support-microservice
+      dockerfile: Dockerfile
+    container_name: customer-support-microservice-app
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_ENABLED: ${GEMINI_ENABLED:-true}
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/api/chat/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat.rule=PathPrefix(`/api/chat`)"
+      - "traefik.http.routers.chat.entrypoints=web"
+      - "traefik.http.services.chat.loadbalancer.server.port=8086"
+
   user-microservice:
     build:
       context: ./user-microservice

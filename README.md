@@ -2,22 +2,25 @@
 
 ## Project Overview
 
-This is a distributed Energy Management System built with microservices architecture. The system allows authenticated users to manage smart energy metering devices and monitor their real-time energy consumption.
+This is a distributed Energy Management System built with microservices architecture. The system allows authenticated users to manage smart energy metering devices, monitor real-time energy consumption, receive overconsumption alerts via WebSocket, and interact with an AI-powered customer support chatbot.
 
-![Deployment Architecture - Assignment 2](deployment%20diagram%20assig2.png)
+![Deployment Architecture - Assignment 3](deployment%20diagram%20Assigment3.png)
 
 ### Key Features
 
 - **Role-Based Access Control**: Admin and Client roles with different permissions
-- **Microservices Architecture**: Loosely coupled services for User, Device, Authentication, and Monitoring
+- **Microservices Architecture**: Loosely coupled services for User, Device, Authentication, Monitoring, WebSocket, and Customer Support
 - **Real-Time Monitoring**: Live energy consumption tracking with data aggregation
+- **WebSocket Notifications**: Real-time overconsumption alerts pushed to clients
+- **AI Customer Support**: Intelligent chatbot with rule-based and Google Gemini AI responses
+- **Live Admin Chat**: Real-time bidirectional chat between clients and administrators
 - **Message-Oriented Middleware**: RabbitMQ for asynchronous communication between services
 - **Device Simulation**: Python simulator for generating realistic sensor data
 - **Reverse Proxy**: Traefik API Gateway for request routing
 - **Containerized Deployment**: Full Docker-based deployment
 - **RESTful APIs**: All microservices expose REST endpoints
 - **JWT Authentication**: Secure token-based authentication
-- **Modern Frontend**: Next.js with TypeScript and real-time charts
+- **Modern Frontend**: Next.js with TypeScript, real-time charts, and Wall-E mascot
 
 ---
 
@@ -29,6 +32,9 @@ This is a distributed Energy Management System built with microservices architec
    - Admin dashboard for managing users and devices
    - Client dashboard for viewing assigned devices
    - Real-time energy consumption monitoring with interactive charts
+   - WebSocket-based notification system for overconsumption alerts
+   - AI Customer Support chat interface with Wall-E mascot
+   - Admin chat interface for real-time client communication
    - Date-based filtering and visualization
 
 2. **Traefik Reverse Proxy & API Gateway**
@@ -51,293 +57,174 @@ This is a distributed Energy Management System built with microservices architec
    - Device-to-user assignment
    - Publishes device events to RabbitMQ sync queue
 
-6. **Monitoring Microservice** (Spring Boot - Port 8084) **[NEW - Assignment 2]**
+6. **Monitoring Microservice** (Spring Boot - Port 8084)
    - Receives device and user sync events from RabbitMQ
    - Collects real-time sensor data from devices
    - Aggregates measurements into hourly consumption records
+   - Detects overconsumption and publishes alerts to RabbitMQ
    - Provides REST API for consumption data queries
    - Stores data in separate MySQL database
 
-7. **Device Simulator** (Python) **[NEW - Assignment 2]**
+7. **WebSocket Microservice** (Spring Boot - Port 8085) **[NEW - Assignment 3]**
+   - Real-time WebSocket connections for notifications
+   - Overconsumption alert delivery to connected clients
+   - Live chat functionality between clients and admins
+   - RabbitMQ listener for event-driven notifications
+   - Session management for connected users
+
+8. **Customer Support Microservice** (Spring Boot - Port 8086) **[NEW - Assignment 3]**
+   - AI-powered chatbot with Google Gemini integration
+   - Rule-based response system for common queries
+   - Hybrid approach: rules first, AI fallback
+   - Response type badges (Rule-Based vs AI)
+   - Energy management domain expertise
+
+9. **Device Simulator** (Python)
    - Simulates real IoT devices sending sensor data
    - Generates realistic energy consumption patterns
    - Publishes measurements to RabbitMQ every 10 seconds
    - Configurable device ID and measurement intervals
 
-8. **RabbitMQ Message Broker** (Port 5672, Management: 15672) **[NEW - Assignment 2]**
-   - `sync_queue`: Synchronizes users and devices across microservices
-   - `sensor_data_queue`: Receives real-time measurements from devices
-   - Ensures reliable message delivery between services
+10. **RabbitMQ Message Broker** (Port 5672, Management: 15672)
+    - `sync_queue`: Synchronizes users and devices across microservices
+    - `sensor_data_queue`: Receives real-time measurements from devices
+    - `overconsumption.queue`: Overconsumption alert events **[NEW]**
+    - `chat.messages.queue`: Real-time chat messages **[NEW]**
+    - Ensures reliable message delivery between services
 
-9. **MySQL Databases**
-   - `energy_auth_db` (Port 3309): Authentication credentials
-   - `energy_users_db` (Port 3307): User profiles
-   - `energy_devices_db` (Port 3308): Devices
-   - `energy_monitoring_db` (Port 3310): Consumption data **[NEW]**
-
-### Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Browser                          │
-│                      http://localhost:3000                      │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Traefik Reverse Proxy                        │
-│                      http://localhost                           │
-└────┬────────┬────────┬────────┬────────────────────────────────┘
-     │        │        │        │
-     │        │        │        └─────────────────┐
-     │        │        │                          │
-/api/auth  /api/users  /api/devices  /api/monitoring
-     │        │        │                          │
-     ▼        ▼        ▼                          ▼
-┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────────┐
-│  Auth   │ │  User   │ │ Device  │ │   Monitoring     │
-│ Service │ │ Service │ │ Service │ │   Microservice   │
-│  :8083  │ │  :8081  │ │  :8082  │ │      :8084       │
-└────┬────┘ └────┬────┘ └────┬────┘ └────────┬─────────┘
-     │           │           │                │
-     │           │           │                │
-     │      ┌────┴───────────┴────────────────┤
-     │      │         RabbitMQ Broker         │
-     │      │  sync_queue | sensor_data_queue │
-     │      │            :5672                 │
-     │      └─────────────────────────┬────────┘
-     │                                │
-     │                                │ Sensor Data
-     │                                │
-     │                    ┌───────────▼──────────┐
-     │                    │  Device Simulator    │
-     │                    │      (Python)        │
-     │                    └──────────────────────┘
-     │
-     ▼           ▼           ▼           ▼
-┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────────┐
-│mysql-auth mysql-users mysql-devices mysql-monitoring
-│  :3309  │ │  :3307  │ │  :3308  │ │    :3310    │
-└─────────┘ └─────────┘ └─────────┘ └─────────────┘
-```
+11. **MySQL Databases**
+    - `energy_auth_db` (Port 3309): Authentication credentials
+    - `energy_users_db` (Port 3307): User profiles
+    - `energy_devices_db` (Port 3308): Devices
+    - `energy_monitoring_db` (Port 3310): Consumption data
 
 ---
 
-## Assignment 2: Real-Time Monitoring System
+## Assignment 3: WebSocket Notifications & AI Customer Support
 
 ### Overview
 
-Assignment 2 extends the system with real-time energy monitoring capabilities using message-oriented middleware (RabbitMQ).
+Assignment 3 extends the system with real-time WebSocket notifications for overconsumption alerts and an AI-powered customer support chatbot with Google Gemini integration.
 
-### Key Components
+### Part 1: WebSocket Microservice
 
-#### 1. Monitoring Microservice (Java Spring Boot)
-
-**Purpose**: Collects and aggregates energy consumption data from IoT devices.
+**Purpose**: Provides real-time bidirectional communication for notifications and live chat.
 
 **Features**:
-- Listens to RabbitMQ queues for device sync and sensor data
-- Maintains local copies of users and devices
-- Aggregates 6 measurements into hourly consumption records
-- Provides REST API for querying consumption data
-- Stores data in separate MySQL database
+- WebSocket endpoint for overconsumption notifications (`/ws/notifications`)
+- WebSocket endpoint for live chat (`/ws/chat`)
+- RabbitMQ listener for overconsumption events
+- Session management for user connections
+- Automatic reconnection handling
+
+**WebSocket Endpoints**:
+| Endpoint | Purpose |
+|----------|---------|
+| `ws://localhost:8085/ws/notifications?userId={id}` | Overconsumption alerts |
+| `ws://localhost:8085/ws/chat?userId={id}&role={role}` | Live chat |
 
 **Main Classes**:
-- `SyncQueueListener.java`: Receives USER_CREATED and DEVICE_CREATED events
-- `SensorDataListener.java`: Receives real-time sensor measurements
-- `ConsumptionAggregationService.java`: Aggregates measurements into hourly records
-- `MonitoringController.java`: REST API for consumption queries
+- `NotificationWebSocketHandler.java`: Handles notification connections
+- `ChatWebSocketHandler.java`: Handles chat connections
+- `OverconsumptionListener.java`: Listens to RabbitMQ for alerts
+- `ChatMessageListener.java`: Listens to RabbitMQ for chat messages
 
-**Database Schema**:
-```sql
--- Users table (synced from User Microservice)
-CREATE TABLE users (
-    id VARCHAR(36) PRIMARY KEY,
-    username VARCHAR(255),
-    email VARCHAR(255),
-    created_at TIMESTAMP
-);
+### Part 2: Customer Support Microservice
 
--- Devices table (synced from Device Microservice)
-CREATE TABLE devices (
-    id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36),
-    description VARCHAR(255),
-    address VARCHAR(255),
-    max_hourly_consumption DOUBLE,
-    created_at TIMESTAMP
-);
-
--- Hourly consumption aggregated data
-CREATE TABLE hourly_consumption (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    device_id VARCHAR(36),
-    timestamp DATETIME,
-    consumption_kwh FLOAT,
-    measurement_count INT,
-    created_at DATETIME
-);
-```
-
-#### 2. Device Simulator (Python)
-
-**Purpose**: Simulates IoT devices sending real-time energy measurements.
+**Purpose**: AI-powered chatbot for customer support with hybrid rule-based and Gemini AI responses.
 
 **Features**:
-- Generates realistic consumption patterns based on time of day
-- Sends measurements to RabbitMQ every 10 seconds (configurable)
-- Auto-stops after 6 measurements (configurable)
-- Easy configuration via JSON file
+- Rule-based responses for common queries (greetings, help, billing, devices)
+- Google Gemini AI integration for complex questions
+- Response type badges to distinguish AI vs rule-based answers
+- Energy management domain expertise
+- Fallback mechanism when AI is unavailable
 
-**Configuration** (`device-simulator/config.json`):
+**Rule-Based Patterns**:
+| Rule | Triggers | Example Response |
+|------|----------|------------------|
+| Greeting | "salut", "buna", "hello" | "Bună! Sunt asistentul virtual..." |
+| Help | "ajutor", "help", "cum" | "Pot să te ajut cu..." |
+| Billing | "factura", "plata", "cost" | "Pentru facturare..." |
+| Devices | "dispozitiv", "device" | "Pentru dispozitive..." |
+| Consumption | "consum", "energie" | "Pentru monitorizare consum..." |
+| Farewell | "pa", "bye", "multumesc" | "Cu plăcere! La revedere!" |
+
+**API Endpoints**:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/message` | Send message to chatbot |
+| GET | `/api/chat/health` | Health check |
+
+**Request/Response**:
 ```json
+// Request
+POST /api/chat/message
 {
-  "device_id": "84c776f5-7ab7-4cf1-9233-b5ca6a14abad",
-  "rabbitmq_host": "localhost",
-  "rabbitmq_port": 5672,
-  "rabbitmq_user": "guest",
-  "rabbitmq_pass": "guest",
-  "interval_seconds": 10,
-  "test_mode": true,
-  "max_measurements": 6
+  "userId": "user-123",
+  "message": "Care este consumul meu?"
+}
+
+// Response
+{
+  "response": "Pentru a vedea consumul...",
+  "responseType": "RULE_BASED",
+  "timestamp": "2025-12-07T10:30:00"
 }
 ```
 
-**Usage**:
-```bash
-cd device-simulator
-python simulator.py
-```
+### Part 3: Frontend Integration
 
-**Output Example**:
-```
-======================================================================
- Device Data Simulator Started
-======================================================================
-Device ID: 84c776f5-7ab7-4cf1-9233-b5ca6a14abad
-RabbitMQ: localhost:5672
-Queue: sensor_data_queue
-  TEST MODE: Sending every 10 seconds
-  AUTO-STOP: Will stop after 6 measurements
-======================================================================
+**Notification System**:
+- Real-time toast notifications for overconsumption
+- WebSocket hook with auto-reconnect
+- Visual alerts with device information
 
-[1] 2025-11-27 10:14:34 - Device: 84c776f5... - Value: 2.68 kWh
-    Waiting 10 seconds until next measurement...
+**Customer Support Chat**:
+- Chat interface with Wall-E mascot
+- Message bubbles with response type badges
+- Typing indicators
+- Chat history
 
-[2] 2025-11-27 10:14:44 - Device: 84c776f5... - Value: 2.45 kWh
-    Waiting 10 seconds until next measurement...
-
-...
-
-[6] 2025-11-27 10:15:24 - Device: 84c776f5... - Value: 2.88 kWh
-
-======================================================================
- ✓ Reached maximum measurements limit: 6
- Total measurements sent: 6
- Simulator stopped automatically
-======================================================================
-```
-
-#### 3. RabbitMQ Message Queues
-
-**sync_queue**: Synchronizes entities across microservices
-- User Microservice publishes USER_CREATED events
-- Device Microservice publishes DEVICE_CREATED events
-- Monitoring Microservice consumes both events
-
-**sensor_data_queue**: Real-time sensor measurements
-- Device Simulator publishes measurements
-- Monitoring Microservice consumes and aggregates data
-
-**Message Format**:
-```json
-// Sensor Data Message
-{
-  "timestamp": "2025-11-27T10:14:34.230235",
-  "device_id": "84c776f5-7ab7-4cf1-9233-b5ca6a14abad",
-  "measurement_value": 2.68
-}
-
-// Sync Event Message
-{
-  "event": "DEVICE_CREATED",
-  "deviceId": "84c776f5-7ab7-4cf1-9233-b5ca6a14abad",
-  "userId": "84c776f5-7ab7-4cf1-9233-b5ca6a14abad",
-  "description": "laptop Ana",
-  "address": "Str Universitatii 1",
-  "maxHourlyConsumption": 120.0,
-  "timestamp": 1764148231000
-}
-```
+**Admin Chat Interface**:
+- Real-time client list
+- Bidirectional messaging
+- Message timestamps
+- Connection status indicators
 
 ### Data Flow
 
-1. **Device Creation**:
-   ```
-   Admin creates device in Frontend
-   → Device Microservice saves to DB
-   → Publishes DEVICE_CREATED to sync_queue
-   → Monitoring Microservice receives event
-   → Saves device to local DB
-   ```
-
-2. **Sensor Data Collection**:
-   ```
-   Device Simulator generates measurement
-   → Publishes to sensor_data_queue
-   → Monitoring Microservice receives measurement
-   → Adds to aggregation buffer
-   → After 6 measurements: calculates sum
-   → Saves to hourly_consumption table
-   ```
-
-3. **Data Visualization**:
-   ```
-   User selects device and date in Frontend
-   → Frontend calls /api/monitoring/devices/{id}/consumption
-   → Monitoring Microservice queries hourly_consumption
-   → Returns aggregated data
-   → Frontend displays chart
-   ```
-
-### Monitoring API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/monitoring/health` | Health check |
-| GET | `/api/monitoring/users` | Get all synced users |
-| GET | `/api/monitoring/devices` | Get all synced devices |
-| GET | `/api/monitoring/devices/{deviceId}/consumption` | Get consumption data |
-
-**Example Request**:
-```bash
-curl "http://localhost/api/monitoring/devices/84c776f5-7ab7-4cf1-9233-b5ca6a14abad/consumption?startDate=2025-11-27T00:00:00&endDate=2025-11-27T23:59:59"
+**Overconsumption Notification Flow**:
+```
+Device Simulator sends measurement
+→ Monitoring Microservice receives data
+→ Detects overconsumption (value > maxHourlyConsumption)
+→ Publishes to overconsumption.queue
+→ WebSocket Microservice receives event
+→ Pushes notification to connected client via WebSocket
+→ Frontend displays toast notification
 ```
 
-**Example Response**:
-```json
-[
-  {
-    "measurementCount": 6,
-    "consumption": 14.85,
-    "timestamp": "2025-11-27T10:00:00"
-  }
-]
+**Customer Support Chat Flow**:
+```
+User types message in chat
+→ Frontend sends POST to /api/chat/message
+→ Customer Support checks rule-based patterns
+→ If match: returns rule-based response
+→ If no match: sends to Gemini AI
+→ Returns response with type badge
+→ Frontend displays message with badge
 ```
 
-### Frontend Monitoring Page
-
-**Features**:
-- Device selection dropdown
-- Date picker calendar
-- Chart type selection (Line/Bar)
-- Real-time statistics:
-  - Total Consumption (kWh)
-  - Average Consumption per hour
-  - Peak Consumption
-- Interactive charts with Recharts library
-
-**Location**: `frontend/app/dashboard/monitoring/page.tsx`
+**Live Admin Chat Flow**:
+```
+Client sends message via WebSocket
+→ WebSocket Microservice receives message
+→ Publishes to chat.messages.queue
+→ Admin receives message in real-time
+→ Admin responds via WebSocket
+→ Client receives response instantly
+```
 
 ---
 
@@ -347,10 +234,12 @@ curl "http://localhost/api/monitoring/devices/84c776f5-7ab7-4cf1-9233-b5ca6a14ab
 - **Java 17** with **Spring Boot 3.5.6**
 - **Spring Data JPA** for ORM
 - **Spring Security** for authentication
-- **Spring AMQP** for RabbitMQ integration **[NEW]**
+- **Spring AMQP** for RabbitMQ integration
+- **Spring WebSocket** for real-time communication **[NEW]**
+- **Google Gemini API** for AI responses **[NEW]**
 - **JWT** for stateless authentication
 - **MySQL 8.0** for data persistence
-- **RabbitMQ 3.13** for message brokering **[NEW]**
+- **RabbitMQ 3.13** for message brokering
 - **Maven** for dependency management
 
 ### Frontend
@@ -358,18 +247,19 @@ curl "http://localhost/api/monitoring/devices/84c776f5-7ab7-4cf1-9233-b5ca6a14ab
 - **React 19** - UI library
 - **TypeScript 5** - Type safety
 - **Tailwind CSS 4** - Styling
-- **Recharts** - Data visualization **[NEW]**
-- **date-fns** - Date manipulation **[NEW]**
+- **Recharts** - Data visualization
+- **WebSocket API** - Real-time notifications **[NEW]**
+- **date-fns** - Date manipulation
 - **SWR** - Data fetching
 
 ### Device Simulator
-- **Python 3.x** **[NEW]**
-- **pika** - RabbitMQ client library **[NEW]**
+- **Python 3.x**
+- **pika** - RabbitMQ client library
 
 ### Infrastructure
 - **Docker** & **Docker Compose**
 - **Traefik v2.10** - API Gateway
-- **RabbitMQ 3.13** - Message Broker **[NEW]**
+- **RabbitMQ 3.13** - Message Broker
 
 ---
 
@@ -378,8 +268,9 @@ curl "http://localhost/api/monitoring/devices/84c776f5-7ab7-4cf1-9233-b5ca6a14ab
 - **Docker Desktop** (version 20.10+)
 - **Docker Compose** (version 2.0+)
 - **Python 3.x** (for device simulator)
+- **Google Gemini API Key** (for AI chatbot)
 - **8GB RAM minimum**
-- **Ports Available**: 80, 3000, 3307-3310, 5672, 8080-8084, 15672
+- **Ports Available**: 80, 3000, 3307-3310, 5672, 8080-8086, 15672
 
 ---
 
@@ -393,15 +284,23 @@ cd energy-management-system
 docker-compose build
 ```
 
-### Step 2: Start All Services
+### Step 2: Configure Environment
+
+Create `.env` file in root directory:
+```env
+GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_ENABLED=true
+```
+
+### Step 3: Start All Services
 
 ```bash
 docker-compose up -d
 ```
 
-Wait 30 seconds for all services to start.
+Wait 30-60 seconds for all services to start.
 
-### Step 3: Initialize Admin User
+### Step 4: Initialize Admin User
 
 **Windows (CMD)**:
 ```cmd
@@ -415,7 +314,7 @@ cd auth-microservice
 .\docker-init-admin.ps1
 ```
 
-### Step 4: Access the Application
+### Step 5: Access the Application
 
 Open browser: **http://localhost:3000**
 
@@ -423,126 +322,46 @@ Login with:
 - **Email**: `admin@energy.ro`
 - **Password**: `admin123`
 
-### Step 5: Test Monitoring System
+### Step 6: Test Features
 
-1. **Create a User**:
-   - Go to Users → Add User
-   - Fill in details (Name, Email, Password, Role: CLIENT)
-   - Click Create
+**Test Overconsumption Notifications**:
+1. Create a device with low `maxHourlyConsumption` (e.g., 1.0)
+2. Run device simulator with that device ID
+3. Watch for toast notifications when consumption exceeds limit
 
-2. **Create a Device**:
-   - Go to Devices → Add Device
-   - Fill in: Description, Address, Max Consumption
-   - Assign to the user you created
-   - Click Create
+**Test AI Customer Support**:
+1. Go to Customer Support page
+2. Type "Salut" - get rule-based response
+3. Type complex question - get AI response
+4. Notice the response type badges
 
-3. **Run Device Simulator**:
-   ```bash
-   cd device-simulator
-   # Edit config.json and put your device ID
-   python simulator.py
-   ```
-
-4. **View Consumption Data**:
-   - Go to Monitoring page
-   - Select your device from dropdown
-   - Select today's date
-   - Click "Load Data"
-   - See the chart with consumption data!
+**Test Admin Chat**:
+1. Login as admin, go to Admin Chat
+2. Open another browser as client
+3. Client sends message
+4. Admin receives and responds in real-time
 
 ---
 
-## Testing the Monitoring System
+## Service Ports
 
-### Complete Test Flow
-
-**Step 1: Create User**
-```bash
-# Via Frontend or API
-POST http://localhost/api/users
-{
-  "username": "testuser",
-  "password": "test123",
-  "email": "test@example.com",
-  "fullName": "Test User",
-  "role": "CLIENT"
-}
-```
-
-**Step 2: Create Device**
-```bash
-POST http://localhost/api/devices
-{
-  "description": "Test Device",
-  "address": "Test Address",
-  "maximumHourlyConsumption": 100.0,
-  "userId": "<user-id-from-step-1>"
-}
-```
-
-**Step 3: Verify Sync in Monitoring**
-```bash
-# Check device synced
-docker exec -it mysql-monitoring-db mysql -u root -proot energy_monitoring_db \
-  -e "SELECT * FROM devices WHERE description='Test Device';"
-```
-
-**Step 4: Configure Simulator**
-Edit `device-simulator/config.json`:
-```json
-{
-  "device_id": "<device-id-from-step-2>",
-  "interval_seconds": 10,
-  "max_measurements": 6
-}
-```
-
-**Step 5: Run Simulator**
-```bash
-cd device-simulator
-python simulator.py
-```
-
-**Step 6: Verify Data Aggregation**
-```bash
-# Check hourly consumption
-docker exec -it mysql-monitoring-db mysql -u root -proot energy_monitoring_db \
-  -e "SELECT * FROM hourly_consumption ORDER BY timestamp DESC LIMIT 5;"
-```
-
-**Step 7: Test API**
-```bash
-curl "http://localhost/api/monitoring/devices/<device-id>/consumption?startDate=2025-11-27T00:00:00&endDate=2025-11-27T23:59:59"
-```
-
-**Step 8: View in Frontend**
-- Open http://localhost:3000/dashboard/monitoring
-- Select device
-- Select date
-- Click "Load Data"
-- Chart appears!
-
----
-
-## RabbitMQ Management
-
-### Access RabbitMQ Management UI
-
-**URL**: http://localhost:15672
-**Username**: `guest`
-**Password**: `guest`
-
-### Monitor Queues
-
-- `sync_queue`: User and device synchronization events
-- `sensor_data_queue`: Real-time sensor measurements
-
-### View Messages
-
-1. Go to Queues tab
-2. Click on queue name
-3. Click "Get Messages"
-4. See message content and statistics
+| Service | Internal Port | External Port | URL |
+|---------|--------------|---------------|-----|
+| Frontend | 3000 | 3000 | http://localhost:3000 |
+| Traefik | 80 | 80 | http://localhost |
+| Traefik Dashboard | 8080 | 8080 | http://localhost:8080 |
+| User Service | 8081 | - | /api/users |
+| Device Service | 8082 | - | /api/devices |
+| Auth Service | 8083 | - | /api/auth |
+| Monitoring Service | 8084 | - | /api/monitoring |
+| WebSocket Service | 8085 | 8085 | ws://localhost:8085 |
+| Customer Support | 8086 | 8086 | /api/chat |
+| RabbitMQ | 5672 | 5672 | amqp://localhost |
+| RabbitMQ Management | 15672 | 15672 | http://localhost:15672 |
+| MySQL Users | 3306 | 3307 | - |
+| MySQL Devices | 3306 | 3308 | - |
+| MySQL Auth | 3306 | 3309 | - |
+| MySQL Monitoring | 3306 | 3310 | - |
 
 ---
 
@@ -553,106 +372,53 @@ energy-management-system/
 ├── auth-microservice/              # Authentication Service
 ├── user-microservice/              # User Management
 ├── device-microservice/            # Device Management
-├── monitoring-microservice/        # Monitoring Service [NEW]
+├── monitoring-microservice/        # Monitoring Service
 │   └── src/main/java/com/energy/monitoring/
 │       ├── config/                 # RabbitMQ configuration
 │       ├── controller/             # REST controllers
 │       ├── dto/                    # Data transfer objects
 │       ├── entity/                 # JPA entities
 │       ├── listener/               # RabbitMQ listeners
-│       │   ├── SyncQueueListener.java
-│       │   └── SensorDataListener.java
 │       ├── repository/             # Data repositories
 │       └── service/                # Business logic
-│           └── ConsumptionAggregationService.java
-├── device-simulator/               # Python Device Simulator [NEW]
-│   ├── simulator.py                # Main simulator script
-│   ├── config.json                 # Configuration file
-│   └── README.md                   # Simulator documentation
+├── websocket-microservice/         # WebSocket Service [NEW]
+│   └── src/main/java/com/energy/websocket/
+│       ├── config/                 # WebSocket & RabbitMQ config
+│       ├── dto/                    # Message DTOs
+│       ├── handler/                # WebSocket handlers
+│       │   ├── NotificationWebSocketHandler.java
+│       │   └── ChatWebSocketHandler.java
+│       └── listener/               # RabbitMQ listeners
+│           ├── OverconsumptionListener.java
+│           └── ChatMessageListener.java
+├── customer-support-microservice/  # AI Customer Support [NEW]
+│   └── src/main/java/com/energy/support/
+│       ├── controller/             # REST controllers
+│       ├── service/                # Business logic
+│       │   ├── GeminiService.java
+│       │   └── RuleBasedChatService.java
+│       └── rules/                  # Chat rules
+│           ├── GreetingRule.java
+│           ├── HelpRule.java
+│           ├── BillingRule.java
+│           └── ...
+├── device-simulator/               # Python Device Simulator
+│   ├── simulator.py
+│   ├── config.json
+│   └── README.md
 ├── frontend/                       # Next.js Frontend
-│   └── app/dashboard/monitoring/   # Monitoring page [NEW]
-│       └── page.tsx
+│   ├── app/
+│   │   └── dashboard/
+│   │       ├── monitoring/         # Consumption charts
+│   │       ├── customer-support/   # AI chatbot [NEW]
+│   │       └── admin-chat/         # Live chat [NEW]
+│   ├── components/
+│   │   └── wall-e-mascot.tsx       # Wall-E mascot [NEW]
+│   └── hooks/
+│       └── use-websocket-chat.ts   # WebSocket hook [NEW]
 ├── docker-compose.yml              # Docker configuration
+├── deployment diagram Assigment3.png # Architecture diagram
 └── README.md                       # This file
-```
-
----
-
-## Troubleshooting
-
-### RabbitMQ Connection Issues
-
-**Problem**: Services can't connect to RabbitMQ
-
-**Solution**:
-```bash
-# Check RabbitMQ is running
-docker ps | grep rabbitmq
-
-# Check logs
-docker logs rabbitmq-broker
-
-# Restart RabbitMQ
-docker-compose restart rabbitmq-broker
-```
-
-### Simulator Not Sending Data
-
-**Problem**: Simulator runs but no data in monitoring
-
-**Solution**:
-1. Check `config.json` has correct device_id
-2. Verify device exists in monitoring DB
-3. Check RabbitMQ queue has messages
-4. Check monitoring microservice logs
-
-```bash
-docker logs monitoring-microservice-app
-```
-
-### Chart Not Displaying
-
-**Problem**: Frontend shows "No data available"
-
-**Solution**:
-1. Check date selected matches data timestamp
-2. Verify API returns data:
-   ```bash
-   curl "http://localhost/api/monitoring/devices/{id}/consumption?startDate=2025-11-27T00:00:00&endDate=2025-11-27T23:59:59"
-   ```
-3. Check browser console for errors (F12)
-4. Refresh page (Ctrl+F5)
-
-### Data Not Aggregating
-
-**Problem**: Measurements received but not aggregated
-
-**Solution**:
-```bash
-# Check monitoring logs
-docker logs monitoring-microservice-app | grep "Aggregated"
-
-# Verify 6 measurements received
-docker logs monitoring-microservice-app | grep "buffer size"
-
-# Check database
-docker exec -it mysql-monitoring-db mysql -u root -proot energy_monitoring_db \
-  -e "SELECT * FROM hourly_consumption;"
-```
-
----
-
-## Stopping the System
-
-```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove all data
-docker-compose down -v
-
-# Restart specific service
-docker-compose restart monitoring-microservice
 ```
 
 ---
@@ -678,17 +444,79 @@ docker-compose restart monitoring-microservice
 ✅ Interactive charts
 ✅ Date-based filtering
 
+### Assignment 3
+✅ WebSocket microservice for real-time communication
+✅ Overconsumption notifications via WebSocket
+✅ Customer Support microservice with AI
+✅ Google Gemini API integration
+✅ Rule-based chat responses
+✅ Response type badges (AI vs Rule-Based)
+✅ Live admin-client chat
+✅ Wall-E mascot in chat interface
+✅ Auto-reconnect WebSocket handling
+
 ---
 
-## Future Enhancements
+## Troubleshooting
 
-- [ ] WebSocket for real-time updates
-- [ ] Alert notifications for threshold violations
-- [ ] Historical data export (CSV, PDF)
-- [ ] Advanced analytics and predictions
-- [ ] Mobile app
-- [ ] Multi-device simulator
-- [ ] Kubernetes deployment
+### WebSocket Connection Issues
+
+**Problem**: WebSocket not connecting
+
+**Solution**:
+```bash
+# Check WebSocket service is running
+docker ps | grep websocket
+
+# Check logs
+docker logs websocket-microservice-app
+
+# Test connection
+# Open browser console and run:
+# new WebSocket('ws://localhost:8085/ws/notifications?userId=test')
+```
+
+### Gemini AI Not Responding
+
+**Problem**: AI responses not working
+
+**Solution**:
+1. Check `GEMINI_API_KEY` is set in `.env`
+2. Verify API key is valid
+3. Check customer-support logs:
+   ```bash
+   docker logs customer-support-microservice-app
+   ```
+4. System falls back to rule-based responses if AI fails
+
+### Notifications Not Appearing
+
+**Problem**: No overconsumption notifications
+
+**Solution**:
+1. Verify device `maxHourlyConsumption` is lower than simulated values
+2. Check monitoring service detects overconsumption:
+   ```bash
+   docker logs monitoring-microservice-app | grep "overconsumption"
+   ```
+3. Check WebSocket connection in browser console
+4. Verify RabbitMQ queue has messages
+
+---
+
+## Stopping the System
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove all data
+docker-compose down -v
+
+# Restart specific service
+docker-compose restart websocket-microservice
+docker-compose restart customer-support-microservice
+```
 
 ---
 
@@ -702,13 +530,3 @@ docker-compose restart monitoring-microservice
 ## License
 
 This project is part of an academic assignment for the Distributed Systems course.
-
----
-
-## Acknowledgments
-
-- Spring Boot team
-- Next.js team
-- RabbitMQ team
-- Traefik team
-- All open-source contributors

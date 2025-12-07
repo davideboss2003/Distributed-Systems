@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "./auth-provider"
-import { Users, HardDrive, LayoutDashboard, LogOut, Menu } from "lucide-react"
+import { Users, HardDrive, LayoutDashboard, LogOut, Menu, MessageSquare, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { HologramAvatar } from "./hologram-avatar"
@@ -18,6 +18,9 @@ const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "CLIENT"] },
   { name: "Users", href: "/dashboard/users", icon: Users, roles: ["ADMIN"] },
   { name: "Devices", href: "/dashboard/devices", icon: HardDrive, roles: ["ADMIN", "CLIENT"] },
+  { name: "Monitoring", href: "/dashboard/monitoring", icon: BarChart3, roles: ["ADMIN", "CLIENT"] },
+  { name: "AI Support", href: "/dashboard/chat", icon: MessageSquare, roles: ["ADMIN", "CLIENT"] },
+  { name: "Admin Chat", href: "/dashboard/admin-chat", icon: Users, roles: ["ADMIN"] },
 ]
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

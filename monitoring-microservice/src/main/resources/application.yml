@@ -31,6 +31,7 @@ app:
   rabbitmq:
     sync-queue: sync_queue
     sensor-data-queue: sensor_data_queue
+    overconsumption-queue: overconsumption_queue
 
 logging:
   level:

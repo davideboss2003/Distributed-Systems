@@ -1,5 +1,5 @@
 {
-  "device_id": "84c776f5-7ab7-4cf1-9233-b5ca6a14abad",
+  "device_id": "44b6a56d-62c2-41d9-bc01-f5efbb64a03b",
   "rabbitmq_host": "localhost",
   "rabbitmq_port": 5672,
   "rabbitmq_user": "guest",

@@ -1,5 +1,7 @@
 package com.energy.monitoring.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -18,9 +20,14 @@ public class RabbitMQConfig {
     @Value("${app.rabbitmq.sensor-data-queue}")
     private String sensorDataQueueName;
     
+    @Value("${app.rabbitmq.overconsumption-queue:overconsumption_queue}")
+    private String overconsumptionQueueName;
+    
     @Bean
     public Jackson2JsonMessageConverter jackson2JsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        return new Jackson2JsonMessageConverter(objectMapper);
     }
     
     @Bean
@@ -38,5 +45,10 @@ public class RabbitMQConfig {
     @Bean
     public Queue sensorDataQueue() {
         return QueueBuilder.durable(sensorDataQueueName).build();
+    }
+    
+    @Bean
+    public Queue overconsumptionQueue() {
+        return QueueBuilder.durable(overconsumptionQueueName).build();
     }
 }

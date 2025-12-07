@@ -1,9 +1,14 @@
 package com.energy.monitoring.service;
 
+import com.energy.monitoring.dto.OverconsumptionEvent;
+import com.energy.monitoring.entity.Device;
 import com.energy.monitoring.entity.HourlyConsumption;
+import com.energy.monitoring.repository.DeviceRepository;
 import com.energy.monitoring.repository.HourlyConsumptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,6 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ConsumptionAggregationService {
     
     private final HourlyConsumptionRepository consumptionRepository;
+    private final DeviceRepository deviceRepository;
+    private final RabbitTemplate rabbitTemplate;
+    
+    @Value("${app.rabbitmq.overconsumption-queue}")
+    private String overconsumptionQueue;
     
     // Buffer: deviceId -> (hourTimestamp -> list of measurements)
     private final Map<String, Map<LocalDateTime, List<Double>>> consumptionBuffer = new ConcurrentHashMap<>();
@@ -67,7 +77,57 @@ public class ConsumptionAggregationService {
         
         consumptionRepository.save(consumption);
         
-        log.info("Saved hourly consumption: device={}, timestamp={}, consumption={} kWh, measurements={}",
+        log.info(" Saved hourly consumption: device={}, timestamp={}, consumption={} kWh, measurements={}",
                 deviceId, hourTimestamp, totalConsumption, measurements.size());
+        
+        // ========== OVERCONSUMPTION DETECTION ==========
+        checkOverconsumption(deviceId, totalConsumption, hourTimestamp);
+    }
+    
+    /**
+     * Verifică dacă device-ul a depășit consumul maxim orar
+     * Dacă DA, publică un event în RabbitMQ pentru notificare
+     */
+    private void checkOverconsumption(String deviceId, double consumption, LocalDateTime timestamp) {
+        // Găsește device-ul în DB pentru a obține maxHourlyConsumption
+        Optional<Device> deviceOpt = deviceRepository.findById(deviceId);
+        
+        if (deviceOpt.isEmpty()) {
+            log.warn(" Device not found for overconsumption check: {}", deviceId);
+            return;
+        }
+        
+        Device device = deviceOpt.get();
+        Double maxConsumption = device.getMaxHourlyConsumption();
+        
+        if (maxConsumption == null) {
+            log.debug(" Device {} has no max consumption limit set", deviceId);
+            return;
+        }
+        
+        // Verifică dacă a depășit limita
+        if (consumption > maxConsumption) {
+            log.warn(" OVERCONSUMPTION DETECTED! Device: {}, Consumption: {} kWh > Max: {} kWh",
+                     deviceId, consumption, maxConsumption);
+            
+            // Creează event pentru RabbitMQ
+            OverconsumptionEvent event = new OverconsumptionEvent(
+                deviceId,
+                device.getUserId(),
+                consumption,
+                maxConsumption,
+                timestamp
+            );
+            
+            // Publică în RabbitMQ
+            try {
+                rabbitTemplate.convertAndSend(overconsumptionQueue, event);
+                log.info("-- Published overconsumption event to RabbitMQ: {}", event);
+            } catch (Exception e) {
+                log.error("-- Failed to publish overconsumption event", e);
+            }
+        } else {
+            log.debug("-- Consumption within limits: {} kWh <= {} kWh", consumption, maxConsumption);
+        }
     }
 }
